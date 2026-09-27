@@ -4,8 +4,8 @@ const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_FILES = 3;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const RATE_LIMIT_ATTEMPTS = 5;
-const RATE_LIMIT_WINDOW_SECONDS = 15 * 60;
+const RATE_LIMIT_ATTEMPTS = 15;
+const RATE_LIMIT_WINDOW_SECONDS = 60 * 60;
 const ALLOWED_BROWSER_ORIGINS = new Set([
   "https://lashandlaid.com",
   "https://www.lashandlaid.com",
