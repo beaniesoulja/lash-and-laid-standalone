@@ -29,7 +29,19 @@ docker run -d --name lash-and-laid -p 3000:3000 lash-and-laid
 
 The container is stateless. Booking information and optional photos are stored by the configured Supabase booking endpoint, not on the website host.
 
-Place the website behind HTTPS and connect the final domain before launch. Once the domain is known, restrict the booking endpoint's allowed browser origin to that domain and add production rate limiting or bot protection.
+## Host on Cloudflare Pages
+
+The production website can be deployed as a static Cloudflare Pages project:
+
+1. Connect this GitHub repository to Cloudflare Pages.
+2. Use `main` as the production branch.
+3. Leave the framework preset and build command empty.
+4. Set the build output directory to `public`.
+5. Add the final custom domain when it is ready.
+
+The `public/_headers` file applies the same security headers as the local Node.js server. Booking rate limiting and bot protection run at the Supabase endpoint. No persistent website disk is required.
+
+Once the final domain is known, restrict the booking endpoint's allowed browser origin to that domain.
 
 ## Booking flow
 
