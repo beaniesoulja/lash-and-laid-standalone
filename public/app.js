@@ -47,7 +47,10 @@ bookingDialog?.addEventListener('close', () => {
 
 bookingForm?.addEventListener('submit', async event => {
   event.preventDefault();
-  if (!bookingForm.reportValidity()) return;
+  if (!bookingForm.reportValidity()) {
+    bookingStatus.textContent = 'Please fill in all required fields, including the confirmation checkbox, then tap submit again.';
+    return;
+  }
   const values = new FormData(bookingForm);
   const submitButton = bookingForm.querySelector('[type="submit"]');
   submitButton.disabled = true;
