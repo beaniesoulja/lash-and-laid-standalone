@@ -4,6 +4,8 @@ const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_FILES = 3;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const RATE_LIMIT_ATTEMPTS = 5;
+const RATE_LIMIT_WINDOW_SECONDS = 15 * 60;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,10 +13,10 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
+    headers: { ...corsHeaders, ...extraHeaders, "Content-Type": "application/json; charset=utf-8" },
   });
 }
 
@@ -39,6 +41,26 @@ function isAllowedDate(value: string) {
   const lastDay = new Date(today);
   lastDay.setUTCDate(lastDay.getUTCDate() + 90);
   return requested >= today && requested <= lastDay;
+}
+
+function clientAddress(request: Request) {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return request.headers.get("cf-connecting-ip") || forwarded || request.headers.get("x-real-ip") || "unknown";
+}
+
+async function fingerprintClient(request: Request) {
+  const salt = Deno.env.get("RATE_LIMIT_SALT");
+  if (!salt) throw new Error("Rate limiting is not configured");
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(salt),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const digest = await crypto.subtle.sign("HMAC", key, encoder.encode(clientAddress(request)));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 async function notifyBooking(payload: Record<string, unknown>) {
@@ -77,6 +99,30 @@ Deno.serve(async (request) => {
     const form = await request.formData();
     if (textValue(form, "website", 200)) return json({ ok: true });
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceKey) throw new Error("Database configuration is missing");
+    const supabase = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const fingerprint = await fingerprintClient(request);
+    const { data: limitRows, error: limitError } = await supabase.rpc("consume_booking_rate_limit", {
+      p_fingerprint: fingerprint,
+      p_limit: RATE_LIMIT_ATTEMPTS,
+      p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+    });
+    if (limitError) throw limitError;
+    const limit = Array.isArray(limitRows) ? limitRows[0] : limitRows;
+    if (!limit?.allowed) {
+      const retryAfter = Math.max(1, Number(limit?.retry_after_seconds) || RATE_LIMIT_WINDOW_SECONDS);
+      return json(
+        { ok: false, error: "Too many booking attempts. Please wait a few minutes and try again." },
+        429,
+        { "Retry-After": String(retryAfter) },
+      );
+    }
+
     const fullName = textValue(form, "fullName", 120);
     const whatsappNumber = textValue(form, "phone", 40);
     const email = textValue(form, "email", 254);
@@ -100,13 +146,6 @@ Deno.serve(async (request) => {
       }
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!supabaseUrl || !serviceKey) throw new Error("Database configuration is missing");
-    const supabase = createClient(supabaseUrl, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .insert({
@@ -123,7 +162,6 @@ Deno.serve(async (request) => {
 
     if (bookingError || !booking) throw bookingError || new Error("Booking could not be created");
 
-    const uploadedPaths: string[] = [];
     const photoLinks: string[] = [];
     try {
       for (let index = 0; index < photos.length; index += 1) {
@@ -134,8 +172,6 @@ Deno.serve(async (request) => {
           .from("booking-photos")
           .upload(storagePath, photo, { contentType: photo.type, upsert: false });
         if (uploadError) throw uploadError;
-        uploadedPaths.push(storagePath);
-
         const { error: metadataError } = await supabase.from("booking_photos").insert({
           booking_id: booking.id,
           position: index + 1,

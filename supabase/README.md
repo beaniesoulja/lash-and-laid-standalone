@@ -39,5 +39,8 @@ Configure these only in the Supabase Edge Function secret manager:
 
 - `GOOGLE_SHEETS_WEBHOOK_URL`: deployed Google Apps Script web-app URL
 - `GOOGLE_SHEETS_WEBHOOK_SECRET`: shared webhook secret stored in Google Apps Script properties
+- `RATE_LIMIT_SALT`: a private random value used to hash visitor network addresses before counting attempts
 
 The function keeps a successfully saved booking if Google notification fails and marks the record for staff attention. It never makes uploaded photos public; notification links are signed and expire after seven days.
+
+The public form uses a hidden honeypot and allows five attempts per salted client fingerprint every fifteen minutes. Raw IP addresses are not stored.
