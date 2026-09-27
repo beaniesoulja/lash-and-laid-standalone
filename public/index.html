@@ -103,12 +103,14 @@
     <span>Chat with us</span>
   </a>
 
-  <dialog class="booking-dialog" id="bookingDialog" aria-labelledby="bookingDialogTitle" data-whatsapp-url="https://wa.me/201092445224" data-booking-window="90">
+  <dialog class="booking-dialog" id="bookingDialog" aria-labelledby="bookingDialogTitle" data-whatsapp-url="https://wa.me/201092445224" data-booking-endpoint="https://xdjajqohyikwnfcqroyy.supabase.co/functions/v1/submit-booking" data-booking-window="90">
     <div class="booking-dialog-head">
       <div><p class="eyebrow">Appointment request</p><h2 id="bookingDialogTitle">Tell us about your booking.</h2></div>
       <button class="booking-close" type="button" data-booking-close aria-label="Close booking form">×</button>
     </div>
     <form class="booking-form" id="bookingForm">
+      <input type="hidden" name="source" value="standalone">
+      <label class="booking-trap" aria-hidden="true">Website<input name="website" type="text" tabindex="-1" autocomplete="off"></label>
       <div class="booking-fields">
         <label class="booking-field"><span>Full name</span><input name="fullName" type="text" autocomplete="name" required></label>
         <label class="booking-field"><span>WhatsApp phone number</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="e.g. +44 7700 900123" required><small>International numbers are welcome. Include your country code.</small></label>
@@ -117,9 +119,10 @@
         <label class="booking-field booking-field-wide"><span>Preferred date</span><input name="date" type="date" required><small>Choose the date you would prefer. We will contact you to agree on the final date and time.</small></label>
       </div>
       <label class="booking-upload"><span>Inspiration photos <small>(optional, up to 3)</small></span><input name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple><strong>Choose photos</strong><em data-photo-summary>No photos selected</em></label>
-      <p class="booking-photo-note">For privacy, your photos stay on your device. WhatsApp will open after you submit; attach the selected photos in the chat before sending.</p>
+      <p class="booking-photo-note">Optional photos are uploaded securely with your request and are not made public.</p>
       <label class="booking-confirm"><input name="confirmation" type="checkbox" required><span>I understand this is a preferred-date request. Lash &amp; Laid will contact me so we can mutually agree on the final date and time.</span></label>
-      <div class="booking-form-actions"><button class="button" type="submit">Continue on WhatsApp</button><button class="booking-cancel" type="button" data-booking-close>Cancel</button></div>
+      <p class="booking-submit-status" data-booking-status aria-live="polite"></p>
+      <div class="booking-form-actions"><button class="button" type="submit">Submit &amp; continue to WhatsApp</button><button class="booking-cancel" type="button" data-booking-close>Cancel</button></div>
     </form>
   </dialog>
 
