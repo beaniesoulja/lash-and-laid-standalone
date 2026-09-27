@@ -1,45 +1,3 @@
-const productGrid = document.querySelector('#productGrid');
-const shopEmpty = document.querySelector('#shopEmpty');
-
-function money(value) {
-  return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 2 }).format(value || 0);
-}
-
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
-}
-
-function renderProducts(products) {
-  if (!products.length) {
-    productGrid.innerHTML = '';
-    shopEmpty.hidden = false;
-    return;
-  }
-  shopEmpty.hidden = true;
-  productGrid.innerHTML = products.map(product => {
-    const sale = product.compareAt > product.price;
-    const image = product.image || '/assets/lash-laid-hair.jpg';
-    return `<article class="product-card">
-      <div class="product-media"><img src="${escapeHtml(image)}" alt="${escapeHtml(product.title)}" loading="lazy" decoding="async" width="900" height="1154">${sale ? '<span class="product-badge">Sale</span>' : ''}</div>
-      <div class="product-details">
-        <p>${escapeHtml(product.type)}</p>
-        <h3>${escapeHtml(product.title)}</h3>
-        <div class="product-price"><span>${money(product.price)}</span>${sale ? `<s>${money(product.compareAt)}</s>` : ''}</div>
-      </div>
-    </article>`;
-  }).join('');
-}
-
-async function loadProducts() {
-  try {
-    const response = await fetch('/api/products', { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error('Products are unavailable');
-    renderProducts(await response.json());
-  } catch {
-    renderProducts([]);
-  }
-}
-
 const bookingDialog = document.querySelector('#bookingDialog');
 const bookingForm = document.querySelector('#bookingForm');
 const bookingDate = bookingForm?.elements.date;
@@ -147,4 +105,3 @@ bookingForm?.addEventListener('submit', async event => {
 });
 
 prepareBookingCalendar();
-loadProducts();

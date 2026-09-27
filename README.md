@@ -1,59 +1,43 @@
-# Lash & Laid standalone website
+# Lash & Laid landing page
 
-This is the independent, self-hosted version of the Lash & Laid storefront. It does not require Shopify or any third-party JavaScript packages.
+This is the independent, self-hosted Lash & Laid booking landing page. It has no customer checkout or website administration area.
 
 ## Included
 
-- Responsive branded storefront
-- Mobile-first navigation with a fixed shop, services, and booking dock
-- Short landing animation with reduced-motion accessibility support
-- Hair and hair-care product catalog
-- Password-protected product manager
-- Product image uploads
-- Stock and storefront visibility controls
-- View-only hair and hair-care catalogue with no purchasing controls
-- Appointment request form with WhatsApp handoff
-- Instagram, TikTok, Snapchat, email, and WhatsApp links
+- Responsive branded landing page
+- Mobile-first navigation and landing animation
+- Hair and lash service presentation
+- Appointment request form with international WhatsApp numbers
+- Optional private inspiration-photo uploads
+- Secure booking storage through Supabase
+- Google Sheets and email booking notifications
+- WhatsApp handoff containing the booking reference
+- Instagram, TikTok, Snapchat, and WhatsApp links
 
 ## Run locally
 
 1. Install Node.js 20 or newer.
-2. Copy `.env.example` to `.env`.
-3. Replace the example admin password with a long private password.
-4. In this folder, run:
+2. Run `npm start` in this folder.
+3. Open `http://127.0.0.1:3000`.
 
-   ```sh
-   npm start
-   ```
-
-5. Open `http://127.0.0.1:3000`.
-6. Open `http://127.0.0.1:3000/admin` to manage products.
-
-## Self-host with Docker
-
-Build the container:
+## Host with Docker
 
 ```sh
 docker build -t lash-and-laid .
+docker run -d --name lash-and-laid -p 3000:3000 lash-and-laid
 ```
 
-Run it with a persistent data folder:
+The container is stateless. Booking information and optional photos are stored by the configured Supabase booking endpoint, not on the website host.
 
-```sh
-docker run -d \
-  --name lash-and-laid \
-  -p 3000:3000 \
-  -e ADMIN_PASSWORD='replace-with-a-long-private-password' \
-  -v lash-and-laid-data:/app/data \
-  lash-and-laid
-```
+Place the website behind HTTPS and connect the final domain before launch. Once the domain is known, restrict the booking endpoint's allowed browser origin to that domain and add production rate limiting or bot protection.
 
-Place the website behind an HTTPS reverse proxy such as Caddy, Nginx, or your hosting provider's proxy before making the product manager public.
+## Booking flow
 
-## Product data and backups
+When a customer submits the form:
 
-Products are stored in `data/products.json`. Uploaded product images are stored in `data/uploads/`. Back up the entire `data` directory. When using Docker, keep the `/app/data` volume mounted so products survive updates and restarts.
+1. The booking and any optional photos are stored privately in Supabase.
+2. The booking is copied to the Lash & Laid Google Sheet.
+3. A notification email is sent to `Lashandlaid@gmail.com`.
+4. WhatsApp opens with the customer's booking details and booking reference.
 
-## Booking requests
-
-Customers can submit their preferred date and contact details through the appointment form. The request opens in WhatsApp so Lash & Laid and the customer can mutually agree on the final appointment date and time. Optional inspiration photos remain on the customer's device until they attach them in WhatsApp.
+The requested date is not automatically confirmed. Lash & Laid contacts the customer to mutually agree on the final date and time.
