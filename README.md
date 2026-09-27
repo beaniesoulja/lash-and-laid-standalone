@@ -5,14 +5,14 @@ This is the independent, self-hosted version of the Lash & Laid storefront. It d
 ## Included
 
 - Responsive branded storefront
-- Mobile-first navigation with a fixed shop, services, booking, and bag dock
+- Mobile-first navigation with a fixed shop, services, and booking dock
 - Short landing animation with reduced-motion accessibility support
 - Hair and hair-care product catalog
 - Password-protected product manager
 - Product image uploads
 - Stock and storefront visibility controls
-- Shopping bag saved in the customer's browser
-- WhatsApp ordering and appointment booking
+- View-only hair and hair-care catalogue with no purchasing controls
+- Appointment request form with WhatsApp handoff
 - Instagram, TikTok, Snapchat, email, and WhatsApp links
 
 ## Run locally
@@ -54,6 +54,6 @@ Place the website behind an HTTPS reverse proxy such as Caddy, Nginx, or your ho
 
 Products are stored in `data/products.json`. Uploaded product images are stored in `data/uploads/`. Back up the entire `data` directory. When using Docker, keep the `/app/data` volume mounted so products survive updates and restarts.
 
-## Customer checkout
+## Booking requests
 
-The site currently sends the customer's shopping bag to Lash & Laid through WhatsApp for availability, delivery, and payment confirmation. No card details are collected by this website.
+Customers can submit their preferred date and contact details through the appointment form. The request opens in WhatsApp so Lash & Laid and the customer can mutually agree on the final appointment date and time. Optional inspiration photos remain on the customer's device until they attach them in WhatsApp.
