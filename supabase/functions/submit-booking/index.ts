@@ -187,29 +187,39 @@ Deno.serve(async (request) => {
           .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
         if (signed?.signedUrl) photoLinks.push(signed.signedUrl);
       }
-
-      await notifyBooking({
-        bookingReference: booking.reference,
-        submittedAt: booking.created_at,
-        fullName,
-        whatsapp: whatsappNumber,
-        email,
-        service,
-        requestedDate: preferredDate,
-        photos: photoLinks,
-        recordId: booking.id,
-        source,
-      });
     } catch (error) {
       await supabase.from("bookings").update({
-        staff_notes: `Automatic notification needs attention: ${error instanceof Error ? error.message : "unknown error"}`.slice(0, 1000),
+        staff_notes: `Photo upload needs attention: ${error instanceof Error ? error.message : "unknown error"}`.slice(0, 1000),
       }).eq("id", booking.id);
       return json({
         ok: true,
         bookingReference: booking.reference,
-        warning: "Your request was saved, but the team notification needs attention.",
+        warning: "Your request was saved, but a photo upload needs attention.",
       }, 202);
     }
+
+    // The Google Sheets/email notification is a nice-to-have, not core booking data (already
+    // safely committed above), and its retries can take seconds when the webhook is slow. Run
+    // it after the response goes out so the customer's WhatsApp handoff isn't stuck waiting on it.
+    const notifyTask = notifyBooking({
+      bookingReference: booking.reference,
+      submittedAt: booking.created_at,
+      fullName,
+      whatsapp: whatsappNumber,
+      email,
+      service,
+      requestedDate: preferredDate,
+      photos: photoLinks,
+      recordId: booking.id,
+      source,
+    }).catch(async (error) => {
+      await supabase.from("bookings").update({
+        staff_notes: `Automatic notification needs attention: ${error instanceof Error ? error.message : "unknown error"}`.slice(0, 1000),
+      }).eq("id", booking.id);
+    });
+    const backgroundTasks = (globalThis as { EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void } }).EdgeRuntime;
+    if (backgroundTasks?.waitUntil) backgroundTasks.waitUntil(notifyTask);
+    else await notifyTask;
 
     return json({ ok: true, bookingReference: booking.reference }, 201);
   } catch (error) {
