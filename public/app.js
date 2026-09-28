@@ -1,3 +1,26 @@
+const menuToggle = document.querySelector('[data-menu-toggle]');
+const navMenu = document.querySelector('[data-nav-menu]');
+
+function closeNavMenu() {
+  navMenu?.classList.remove('is-open');
+  menuToggle?.setAttribute('aria-expanded', 'false');
+}
+
+menuToggle?.addEventListener('click', event => {
+  event.stopPropagation();
+  const isOpen = navMenu?.classList.toggle('is-open');
+  menuToggle.setAttribute('aria-expanded', String(Boolean(isOpen)));
+});
+navMenu?.querySelectorAll('[data-nav-link]').forEach(link => link.addEventListener('click', closeNavMenu));
+document.addEventListener('click', event => {
+  if (!navMenu?.classList.contains('is-open')) return;
+  if (navMenu.contains(event.target) || menuToggle.contains(event.target)) return;
+  closeNavMenu();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') closeNavMenu();
+});
+
 const bookingDialog = document.querySelector('#bookingDialog');
 const bookingForm = document.querySelector('#bookingForm');
 const bookingDate = bookingForm?.elements.date;
