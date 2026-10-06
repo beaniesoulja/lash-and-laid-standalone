@@ -157,7 +157,7 @@ Deno.serve(async (request) => {
 
     if (fullName.length < 2) return respond({ ok: false, error: "Please enter your full name" }, 400);
     if (!isPlausiblePhone(whatsappNumber)) return respond({ ok: false, error: "Please enter a valid WhatsApp number" }, 400);
-    if (!isPlausibleEmail(email)) return respond({ ok: false, error: "Please enter a valid email address" }, 400);
+    if (email && !isPlausibleEmail(email)) return respond({ ok: false, error: "Please enter a valid email address or leave it blank" }, 400);
     if (service.length < 2) return respond({ ok: false, error: "Please choose a service" }, 400);
     if (!isAllowedDate(preferredDate)) return respond({ ok: false, error: "Please choose a date within the next 90 days" }, 400);
     if (!consent) return respond({ ok: false, error: "Please confirm the appointment request" }, 400);
@@ -174,7 +174,7 @@ Deno.serve(async (request) => {
         source,
         full_name: fullName,
         whatsapp_number: whatsappNumber,
-        email,
+        email: email || null,
         service,
         preferred_date: preferredDate,
         photo_count: photos.length,

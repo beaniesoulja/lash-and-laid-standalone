@@ -8,7 +8,7 @@ This directory contains the database definition for appointment requests submitt
 
 - A human-readable booking reference
 - Submission time and website source
-- Full name, international WhatsApp number, and email address
+- Full name, international WhatsApp number, and optional email address
 - Selected service and preferred date
 - Booking status and staff notes
 - The mutually agreed appointment date and time, once confirmed
@@ -25,8 +25,8 @@ This directory contains the database definition for appointment requests submitt
 
 ## Booking statuses
 
-- `new`: safely stored before WhatsApp opens
-- `whatsapp_opened`: the customer was sent to WhatsApp; this does not prove the message was sent
+- `new`: safely stored before the customer chooses to open WhatsApp
+- `whatsapp_opened`: the customer opened WhatsApp; this does not prove the message was sent
 - `contacted`: Lash & Laid contacted the customer
 - `confirmed`: both sides agreed on the final schedule
 - `completed`: appointment completed

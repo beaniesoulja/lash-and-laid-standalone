@@ -1,31 +1,32 @@
-const menuToggle = document.querySelector('[data-menu-toggle]');
-const navMenu = document.querySelector('[data-nav-menu]');
-
-function closeNavMenu() {
-  navMenu?.classList.remove('is-open');
-  menuToggle?.setAttribute('aria-expanded', 'false');
-}
-
-menuToggle?.addEventListener('click', event => {
-  event.stopPropagation();
-  const isOpen = navMenu?.classList.toggle('is-open');
-  menuToggle.setAttribute('aria-expanded', String(Boolean(isOpen)));
-});
-navMenu?.querySelectorAll('[data-nav-link]').forEach(link => link.addEventListener('click', closeNavMenu));
-document.addEventListener('click', event => {
-  if (!navMenu?.classList.contains('is-open')) return;
-  if (navMenu.contains(event.target) || menuToggle.contains(event.target)) return;
-  closeNavMenu();
-});
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') closeNavMenu();
-});
-
 const bookingDialog = document.querySelector('#bookingDialog');
 const bookingForm = document.querySelector('#bookingForm');
 const bookingDate = bookingForm?.elements.date;
 const bookingStatus = bookingDialog?.querySelector('[data-booking-status]');
+const bookingSuccess = bookingDialog?.querySelector('[data-booking-success]');
+const bookingReference = bookingDialog?.querySelector('[data-booking-reference]');
+const bookingWhatsapp = bookingDialog?.querySelector('[data-booking-whatsapp]');
+const menuToggle = document.querySelector('.menu-toggle');
+const navMenu = document.querySelector('#navMenu');
 let bookingTrigger = null;
+
+function closeMenu() {
+  navMenu?.classList.remove('is-open');
+  menuToggle?.setAttribute('aria-expanded', 'false');
+  menuToggle?.setAttribute('aria-label', 'Open menu');
+}
+
+menuToggle?.addEventListener('click', () => {
+  const isOpen = navMenu.classList.toggle('is-open');
+  menuToggle.setAttribute('aria-expanded', String(isOpen));
+  menuToggle.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
+});
+navMenu?.querySelectorAll('a').forEach(link => link.addEventListener('click', closeMenu));
+document.addEventListener('click', event => {
+  if (!event.target.closest('.nav')) closeMenu();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') closeMenu();
+});
 
 function localDateValue(date) {
   const year = date.getFullYear();
@@ -48,12 +49,29 @@ function prepareBookingCalendar() {
   bookingDate.max = localDateValue(finalDay);
 }
 
+function resetBookingView() {
+  bookingForm.hidden = false;
+  bookingSuccess.hidden = true;
+  bookingStatus.textContent = '';
+  const submitButton = bookingForm.querySelector('[type="submit"]');
+  submitButton.disabled = false;
+  submitButton.classList.remove('is-loading');
+  submitButton.textContent = 'Save booking request';
+  bookingReference.textContent = '';
+  bookingWhatsapp.removeAttribute('href');
+}
+
 function openBooking(event) {
   bookingTrigger = event.currentTarget;
+  closeMenu();
+  resetBookingView();
   prepareBookingCalendar();
+  const requestedService = bookingTrigger?.dataset.service;
+  if (requestedService && bookingForm?.elements.service) {
+    bookingForm.elements.service.value = requestedService;
+  }
   document.body.classList.add('booking-open');
   bookingDialog.showModal();
-  bookingStatus.textContent = '';
   if (window.innerWidth > 640) bookingForm.elements.fullName.focus();
 }
 
@@ -65,6 +83,8 @@ document.querySelectorAll('[data-booking-open]').forEach(button => button.addEve
 bookingDialog?.querySelectorAll('[data-booking-close]').forEach(button => button.addEventListener('click', closeBooking));
 bookingDialog?.addEventListener('close', () => {
   document.body.classList.remove('booking-open');
+  bookingForm.reset();
+  resetBookingView();
   bookingTrigger?.focus();
 });
 
@@ -94,7 +114,7 @@ bookingForm?.addEventListener('submit', async event => {
     bookingStatus.textContent = error.message || 'We could not save your request. Please try again.';
     submitButton.disabled = false;
     submitButton.classList.remove('is-loading');
-    submitButton.textContent = 'Submit & continue to WhatsApp';
+    submitButton.textContent = 'Save booking request';
     return;
   }
 
@@ -114,8 +134,11 @@ bookingForm?.addEventListener('submit', async event => {
   ].join('\n');
   const whatsappUrl = new URL(bookingDialog.dataset.whatsappUrl || 'https://wa.me/201092445224');
   whatsappUrl.searchParams.set('text', message);
-  bookingStatus.textContent = result.warning || `Booking ${result.bookingReference} saved. Opening WhatsApp…`;
-  window.location.assign(whatsappUrl.toString());
+  bookingReference.textContent = result.bookingReference;
+  bookingWhatsapp.href = whatsappUrl.toString();
+  bookingForm.hidden = true;
+  bookingSuccess.hidden = false;
+  bookingWhatsapp.focus();
 });
 
 prepareBookingCalendar();

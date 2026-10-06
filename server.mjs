@@ -8,6 +8,8 @@ const root = dirname(fileURLToPath(import.meta.url));
 const publicDir = join(root, 'public');
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || '127.0.0.1';
+const canonicalOrigin = 'https://www.lashandlaid.com';
+const redirectHosts = new Set(['lashandlaid.com', 'lash-and-laid-standalone.pages.dev']);
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -77,6 +79,11 @@ const server = createServer((request, response) => {
   }
 
   const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
+  if (redirectHosts.has(url.hostname.toLowerCase())) {
+    response.writeHead(301, { Location: `${canonicalOrigin}${url.pathname}${url.search}` });
+    response.end();
+    return;
+  }
   const route = url.pathname === '/' ? '/index.html' : url.pathname;
   if (serveFile(request, response, route)) return;
   if (!extname(route) && serveFile(request, response, '/index.html')) return;
