@@ -11,9 +11,11 @@ The receiver also writes optional UTM source, medium, campaign, content, and ter
 ## Deployment
 
 1. Paste `Code.gs` into the existing **Lash & Laid Booking Receiver** Apps Script project.
-2. Keep `BOOKING_WEBHOOK_SECRET` in Apps Script properties. Never place it in this repository.
+2. Keep `BOOKING_WEBHOOK_SECRET`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` in Apps Script properties. Never place secret values in this repository. The existing live receiver sends through Resend from `noreply@lashandlaid.com`; preserve that provider and the WhatsApp-only contact guidance.
 3. Save the project.
 4. Edit the existing web-app deployment, select **New version**, and deploy it without changing the web-app URL.
 5. Submit a clearly labelled test request and confirm the Supabase row, Google Sheets row, and HTML notification email.
 
 The spreadsheet ID and notification inbox are operational configuration for this business. All credentials and webhook secrets remain outside the repository.
+
+On 2026-10-11, deployment version 8 added campaign columns and formula-safe spreadsheet cells to the existing live Resend receiver without changing its web-app URL or access settings. No real booking or email was sent as part of that deployment verification.

@@ -90,7 +90,7 @@ function doPost(e) {
       source: source
     });
 
-    MailApp.sendEmail({
+    sendTransactionalEmail_({
       to: CONFIG.notifyEmail,
       subject: 'New Lash & Laid booking request — ' + reference,
       body: emailContent.plainText,
@@ -105,7 +105,7 @@ function doPost(e) {
         service: service,
         requestedDate: requestedDate
       });
-      MailApp.sendEmail({
+      sendTransactionalEmail_({
         to: email,
         replyTo: CONFIG.notifyEmail,
         subject: 'We received your Lash & Laid booking request — ' + reference,
@@ -175,11 +175,11 @@ function buildCustomerEmail_(booking) {
     '<tr><td class="email-pad" style="padding:0 40px 36px;font:15px/25px Arial,sans-serif;color:#62535c;">With care,<br><strong style="color:#450c2e;">The Lash &amp; Laid team</strong></td></tr>';
   return {
     html: emailShell_('Thank you, ' + firstName + '. Your booking request ' + booking.reference + ' has been received.', content,
-      'You received this email because you requested an appointment with Lash &amp; Laid.'),
+      'This is an automated confirmation. Replies are not monitored. Contact us on WhatsApp if you need help.'),
     plainText: ['Hi ' + firstName + ',', '', 'Thank you for choosing Lash & Laid. We have received your booking request.',
       'Service: ' + booking.service, 'Preferred date: ' + date, 'Reference: ' + booking.reference, '',
       'Our team will contact you shortly on WhatsApp to agree on the final date and time. Your appointment is awaiting confirmation.',
-      '', 'Questions or inspiration photos? Chat with us: ' + whatsappUrl, '', 'With care,', 'The Lash & Laid team'].join('\n')
+      '', 'This is an automated message. Replies are not monitored. Questions or inspiration photos? Chat with us:  ' + whatsappUrl, '', 'With care,', 'The Lash & Laid team'].join('\n')
   };
 }
 
@@ -276,6 +276,53 @@ function safeEqual_(left, right) {
     result |= left.charCodeAt(index) ^ right.charCodeAt(index);
   }
   return result === 0;
+}
+
+function sendTransactionalEmail_(message) {
+  const properties = PropertiesService.getScriptProperties();
+  const apiKey = properties.getProperty('RESEND_API_KEY');
+  const fromEmail = properties.getProperty('RESEND_FROM_EMAIL') || 'noreply@lashandlaid.com';
+
+  if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
+
+  const payload = {
+    from: (message.name || 'Lash & Laid') + ' <' + fromEmail + '>',
+    to: [message.to],
+    subject: message.subject,
+    text: message.body,
+    html: message.htmlBody
+  };
+
+  const response = UrlFetchApp.fetch('https://api.resend.com/emails', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      Authorization: 'Bearer ' + apiKey
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+
+  const status = response.getResponseCode();
+  if (status < 200 || status >= 300) {
+    throw new Error('Resend email failed (' + status + '): ' + response.getContentText());
+  }
+}
+
+function testTransactionalEmail() {
+  sendTransactionalEmail_({
+    to: CONFIG.notifyEmail,
+    subject: 'Lash & Laid email delivery test',
+    body: 'Your noreply email delivery is working. This automated test was sent through the live Lash & Laid email provider. Replies are not monitored; customers should use WhatsApp for assistance.',
+    htmlBody: emailShell_(
+      'Lash & Laid email delivery test',
+      emailIntro_('EMAIL DELIVERY TEST', 'Your noreply email is working.', 'This message confirms that Lash & Laid can send branded booking emails from noreply@lashandlaid.com.') +
+      emailSection_('Delivery confirmed', '<p style="margin:0;">The sending domain, private API key, and Google Apps Script integration are connected correctly.</p>') +
+      emailSection_('Customer contact', '<p style="margin:0;">This is an automated address and replies are not monitored. Customers should contact Lash & Laid through WhatsApp.</p>'),
+      'Automated test from Lash &amp; Laid. Replies are not monitored.'
+    ),
+    name: 'Lash & Laid'
+  });
 }
 
 function json_(value) {

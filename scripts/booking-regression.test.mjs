@@ -17,7 +17,13 @@ function receiver(payload) {
     Date, console, LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     PropertiesService: { getScriptProperties: () => ({ getProperty: () => 'test-secret' }) },
     SpreadsheetApp: { openById: () => ({ getSheetByName: () => sheet }) },
-    MailApp: { sendEmail: email => emails.push(email) },
+    UrlFetchApp: { fetch: (url, options) => {
+      assert.equal(url, 'https://api.resend.com/emails');
+      assert.equal(options.headers.Authorization, 'Bearer test-secret');
+      const message = JSON.parse(options.payload);
+      emails.push({ to: message.to[0], body: message.text, htmlBody: message.html });
+      return { getResponseCode: () => 200 };
+    } },
     Utilities: { formatDate: date => date.toISOString() },
     Session: { getScriptTimeZone: () => 'Africa/Cairo' },
     ContentService: { MimeType: { JSON: 'json' }, createTextOutput: text => ({ setMimeType: () => JSON.parse(text) }) },
