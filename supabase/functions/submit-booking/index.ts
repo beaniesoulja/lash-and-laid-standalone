@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyTelegram } from "./telegram.ts";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_FILES = 3;
@@ -41,6 +42,12 @@ function textValue(form: FormData, name: string, maxLength: number) {
   return String(form.get(name) ?? "").trim().slice(0, maxLength);
 }
 
+function campaignValue(form: FormData, name: string) {
+  const value = textValue(form, name, 120).replace(/[\u0000-\u001f\u007f]/g, "");
+  // Campaign tags are staff-created labels, never contact details.
+  return value && !/@|\d{7,}/.test(value) && !/^[=+\-]/.test(value) ? value : null;
+}
+
 function isPlausiblePhone(value: string) {
   return /^[+()\-\s\d]{5,40}$/.test(value) && /\d{5}/.test(value.replace(/\D/g, ""));
 }
@@ -51,10 +58,11 @@ function isPlausibleEmail(value: string) {
 
 function isAllowedDate(value: string) {
   if (!DATE_PATTERN.test(value)) return false;
-  const requested = new Date(`${value}T12:00:00Z`);
-  if (Number.isNaN(requested.getTime())) return false;
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const requested = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(requested.getTime()) || requested.toISOString().slice(0, 10) !== value) return false;
+  const parts = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const part = (type: string) => parts.find((entry) => entry.type === type)!.value;
+  const today = new Date(`${part('year')}-${part('month')}-${part('day')}T00:00:00Z`);
   const lastDay = new Date(today);
   lastDay.setUTCDate(lastDay.getUTCDate() + 90);
   return requested >= today && requested <= lastDay;
@@ -92,12 +100,13 @@ async function notifyBooking(payload: Record<string, unknown>) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...payload, secret: webhookSecret }),
+        signal: AbortSignal.timeout(8000),
       });
       const result = await response.json().catch(() => null);
       if (response.ok && result?.ok) return;
-      lastError = result?.error || `Notification returned ${response.status}`;
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : lastError;
+      lastError = `Notification returned ${response.status}`;
+    } catch {
+      lastError = "Booking notification timed out or failed";
     }
   }
   throw new Error(lastError);
@@ -152,6 +161,11 @@ Deno.serve(async (request) => {
     const preferredDate = textValue(form, "date", 10);
     const sourceValue = textValue(form, "source", 20);
     const source = sourceValue === "shopify" ? "shopify" : "standalone";
+    const campaignSource = campaignValue(form, "utm_source");
+    const campaignMedium = campaignValue(form, "utm_medium");
+    const campaignName = campaignValue(form, "utm_campaign");
+    const campaignContent = campaignValue(form, "utm_content");
+    const campaignTerm = campaignValue(form, "utm_term");
     const consent = textValue(form, "confirmation", 20);
     const photos = form.getAll("photos").filter((item): item is File => item instanceof File && item.size > 0);
 
@@ -172,6 +186,11 @@ Deno.serve(async (request) => {
       .from("bookings")
       .insert({
         source,
+        campaign_source: campaignSource,
+        campaign_medium: campaignMedium,
+        campaign_name: campaignName,
+        campaign_content: campaignContent,
+        campaign_term: campaignTerm,
         full_name: fullName,
         whatsapp_number: whatsappNumber,
         email: email || null,
@@ -185,6 +204,7 @@ Deno.serve(async (request) => {
     if (bookingError || !booking) throw bookingError || new Error("Booking could not be created");
 
     const photoLinks: string[] = [];
+    let photoUploadWarning = false;
     try {
       for (let index = 0; index < photos.length; index += 1) {
         const photo = photos[index];
@@ -209,21 +229,15 @@ Deno.serve(async (request) => {
           .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
         if (signed?.signedUrl) photoLinks.push(signed.signedUrl);
       }
-    } catch (error) {
-      await supabase.from("bookings").update({
-        staff_notes: `Photo upload needs attention: ${error instanceof Error ? error.message : "unknown error"}`.slice(0, 1000),
-      }).eq("id", booking.id);
-      return respond({
-        ok: true,
-        bookingReference: booking.reference,
-        warning: "Your request was saved, but a photo upload needs attention.",
-      }, 202);
+    } catch {
+      // The booking already exists. Still notify staff even when an optional upload fails.
+      photoUploadWarning = true;
     }
 
     // The Google Sheets/email notification is a nice-to-have, not core booking data (already
     // safely committed above), and its retries can take seconds when the webhook is slow. Run
     // it after the response goes out so the customer's WhatsApp handoff isn't stuck waiting on it.
-    const notifyTask = notifyBooking({
+    const googleTask = notifyBooking({
       bookingReference: booking.reference,
       submittedAt: booking.created_at,
       fullName,
@@ -234,18 +248,54 @@ Deno.serve(async (request) => {
       photos: photoLinks,
       recordId: booking.id,
       source,
-    }).catch(async (error) => {
-      await supabase.from("bookings").update({
-        staff_notes: `Automatic notification needs attention: ${error instanceof Error ? error.message : "unknown error"}`.slice(0, 1000),
-      }).eq("id", booking.id);
+      campaignSource,
+      campaignMedium,
+      campaignName,
+      campaignContent,
+      campaignTerm,
     });
+    const telegramTask = notifyTelegram({
+      bookingReference: booking.reference,
+      submittedAt: booking.created_at,
+      fullName,
+      whatsapp: whatsappNumber,
+      email,
+      service,
+      requestedDate: preferredDate,
+      source,
+      campaignSource,
+      campaignMedium,
+      campaignName,
+      campaignContent,
+      campaignTerm,
+      photos: photoLinks,
+      photoUploadWarning,
+    }, {
+      token: Deno.env.get("TELEGRAM_BOT_TOKEN"),
+      chatId: Deno.env.get("TELEGRAM_CHAT_ID"),
+    });
+    const notifyTask = Promise.allSettled([googleTask, telegramTask]).then(async (results) => {
+      const notes = [
+        ...(photoUploadWarning ? ["Photo upload needs attention."] : []),
+        ...(results[0].status === "rejected" ? ["Google Sheets/email notification needs attention."] : []),
+        ...(results[1].status === "rejected" ? ["Telegram notification needs attention."] : []),
+      ];
+      if (notes.length) {
+        const { error } = await supabase.from("bookings").update({ staff_notes: notes.join(" ") }).eq("id", booking.id);
+        if (error) console.error("Could not record booking follow-up status");
+      }
+    }).catch(() => console.error("Booking notification status task failed"));
     const backgroundTasks = (globalThis as { EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void } }).EdgeRuntime;
     if (backgroundTasks?.waitUntil) backgroundTasks.waitUntil(notifyTask);
     else await notifyTask;
 
-    return respond({ ok: true, bookingReference: booking.reference }, 201);
-  } catch (error) {
-    console.error(error);
+    return respond({
+      ok: true,
+      bookingReference: booking.reference,
+      ...(photoUploadWarning ? { warning: "Your request was saved, but a photo upload needs attention." } : {}),
+    }, photoUploadWarning ? 202 : 201);
+  } catch {
+    console.error("Booking submission failed");
     return respond({ ok: false, error: "We could not save your booking. Please try again." }, 500);
   }
 });

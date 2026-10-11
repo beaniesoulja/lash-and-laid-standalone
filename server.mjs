@@ -26,26 +26,28 @@ const contentTypes = {
 
 const compressibleTypes = new Set(['text/html; charset=utf-8', 'text/css; charset=utf-8', 'text/javascript; charset=utf-8', 'image/svg+xml', 'text/plain; charset=utf-8', 'application/xml; charset=utf-8']);
 
-function serveFile(request, response, requestedPath) {
+function serveFile(request, response, requestedPath, statusCode = 200) {
   const relative = normalize(requestedPath).replace(/^([/\\])+/, '');
   const filePath = join(publicDir, relative);
   if (!filePath.startsWith(publicDir) || !existsSync(filePath)) return false;
   const type = contentTypes[extname(filePath).toLowerCase()] || 'application/octet-stream';
   const stat = statSync(filePath);
+  if (!stat.isFile()) return false;
   const lastModified = stat.mtime.toUTCString();
 
   const headers = {
     'Content-Type': type,
     'Cache-Control': type.startsWith('image/') ? 'public, max-age=86400' : 'no-cache',
     'Last-Modified': lastModified,
-    'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://xdjajqohyikwnfcqroyy.supabase.co https://cloudflareinsights.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://wa.me https://api.whatsapp.com",
+    'Content-Security-Policy': "default-src 'self'; img-src 'self' data: https://www.facebook.com https://www.google-analytics.com; style-src 'self' 'unsafe-inline'; script-src 'self' https://static.cloudflareinsights.com https://www.googletagmanager.com https://connect.facebook.net; connect-src 'self' https://xdjajqohyikwnfcqroyy.supabase.co https://cloudflareinsights.com https://www.google-analytics.com https://region1.google-analytics.com https://www.facebook.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://wa.me https://api.whatsapp.com",
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY'
+    'X-Frame-Options': 'DENY',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
   };
 
   const ifModifiedSince = request.headers['if-modified-since'];
-  if (ifModifiedSince && Math.floor(new Date(ifModifiedSince).getTime() / 1000) >= Math.floor(stat.mtime.getTime() / 1000)) {
+  if (statusCode === 200 && ifModifiedSince && Math.floor(new Date(ifModifiedSince).getTime() / 1000) >= Math.floor(stat.mtime.getTime() / 1000)) {
     response.writeHead(304, headers);
     response.end();
     return true;
@@ -56,16 +58,16 @@ function serveFile(request, response, requestedPath) {
   if (canCompress && acceptEncoding.includes('br')) {
     headers['Content-Encoding'] = 'br';
     headers.Vary = 'Accept-Encoding';
-    response.writeHead(200, headers);
+    response.writeHead(statusCode, headers);
     createReadStream(filePath).pipe(createBrotliCompress()).pipe(response);
   } else if (canCompress && acceptEncoding.includes('gzip')) {
     headers['Content-Encoding'] = 'gzip';
     headers.Vary = 'Accept-Encoding';
-    response.writeHead(200, headers);
+    response.writeHead(statusCode, headers);
     createReadStream(filePath).pipe(createGzip()).pipe(response);
   } else {
     headers['Content-Length'] = stat.size;
-    response.writeHead(200, headers);
+    response.writeHead(statusCode, headers);
     createReadStream(filePath).pipe(response);
   }
   return true;
@@ -78,19 +80,35 @@ const server = createServer((request, response) => {
     return;
   }
 
-  const url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
+  let url;
+  try {
+    url = new URL(request.url || '/', `http://${request.headers.host || 'localhost'}`);
+  } catch {
+    response.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    response.end('Bad request');
+    return;
+  }
   if (redirectHosts.has(url.hostname.toLowerCase())) {
     response.writeHead(301, { Location: `${canonicalOrigin}${url.pathname}${url.search}` });
     response.end();
     return;
   }
   const route = url.pathname === '/' ? '/index.html' : url.pathname;
+  const directoryRoute = join(publicDir, normalize(route).replace(/^([/\\])+/, ''), 'index.html');
+  if (route !== '/index.html' && directoryRoute.startsWith(publicDir + '/') && existsSync(directoryRoute)) {
+    if (!url.pathname.endsWith('/')) {
+      response.writeHead(301, { Location: `${url.pathname}/${url.search}` });
+      response.end();
+      return;
+    }
+    if (serveFile(request, response, `${route}index.html`)) return;
+  }
   if (serveFile(request, response, route)) return;
-  if (!extname(route) && serveFile(request, response, '/index.html')) return;
+  if (serveFile(request, response, '/404.html', 404)) return;
   response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
   response.end('Not found');
 });
 
 server.listen(port, host, () => {
-  console.log(`Lash & Laid is running at http://${host}:${port}`);
+  console.log(`Lash & Laid is running at http://${host}:${server.address().port}`);
 });

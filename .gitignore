@@ -1,3 +1,6 @@
 .env
+node_modules/
+.env.*
+!.env.example
 .DS_Store
 data/uploads/*

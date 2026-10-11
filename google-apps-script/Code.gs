@@ -27,6 +27,11 @@ function doPost(e) {
     const requestedDate = clean_(payload.requestedDate, 20);
     const recordId = clean_(payload.recordId, 80);
     const source = clean_(payload.source, 30) || 'Website';
+    const campaignSource = safeSheetText_(payload.campaignSource, 120);
+    const campaignMedium = safeSheetText_(payload.campaignMedium, 120);
+    const campaignName = safeSheetText_(payload.campaignName, 120);
+    const campaignContent = safeSheetText_(payload.campaignContent, 120);
+    const campaignTerm = safeSheetText_(payload.campaignTerm, 120);
     const photos = Array.isArray(payload.photos) ? payload.photos.slice(0, 3).map(function (value) {
       return clean_(value, 1000);
     }) : [];
@@ -37,6 +42,11 @@ function doPost(e) {
 
     const sheet = SpreadsheetApp.openById(CONFIG.spreadsheetId).getSheetByName(CONFIG.sheetName);
     if (!sheet) throw new Error('Bookings sheet was not found');
+    if (sheet.getMaxColumns() < 19) sheet.insertColumnsAfter(sheet.getMaxColumns(), 19 - sheet.getMaxColumns());
+    const campaignHeaders = sheet.getRange('O5:S5');
+    if (campaignHeaders.getValues()[0].every(function (value) { return !value; })) {
+      campaignHeaders.setValues([['UTM source', 'UTM medium', 'UTM campaign', 'UTM content', 'UTM term']]);
+    }
 
     const duplicate = sheet.getRange('A6:A').createTextFinder(reference).matchEntireCell(true).findNext();
     if (duplicate) return json_({ ok: true, duplicate: true, bookingReference: reference });
@@ -57,8 +67,16 @@ function doPost(e) {
       'New',
       '',
       source,
-      recordId
-    ]);
+      recordId,
+      campaignSource,
+      campaignMedium,
+      campaignName,
+      campaignContent,
+      campaignTerm
+    ].map(function (cell) {
+      // Every string crosses the spreadsheet boundary as data, never a formula.
+      return typeof cell === 'string' ? safeSheetText_(cell, cell.length) : cell;
+    }));
 
     const emailContent = buildBookingEmail_({
       reference: reference,
@@ -243,6 +261,12 @@ function isValidEmail_(value) {
 
 function clean_(value, maxLength) {
   return String(value == null ? '' : value).trim().slice(0, maxLength);
+}
+
+function safeSheetText_(value, maxLength) {
+  const text = clean_(value, maxLength);
+  const start = text.replace(/^[\s\u0000-\u001f\u007f\u200b-\u200f\ufeff]+/, '');
+  return /^[=+\-@]/.test(start) ? "'" + text : text;
 }
 
 function safeEqual_(left, right) {

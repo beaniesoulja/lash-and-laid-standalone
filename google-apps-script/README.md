@@ -6,6 +6,8 @@ The staff notification uses email-client-safe table markup, inline CSS, a plain-
 
 When the customer supplies a valid optional email address, the receiver also sends a branded thank-you email. It confirms that the request was saved, shows the booking reference and request summary, explains that the date is still pending, and tells the customer to expect confirmation shortly. No customer email is sent when the optional field is empty.
 
+The receiver also writes optional UTM source, medium, campaign, content, and term into columns O:S of the private Bookings sheet. These are campaign labels for attribution, not customer contact details or proof an ad was displayed. The updated code adds those column headings if they are blank.
+
 ## Deployment
 
 1. Paste `Code.gs` into the existing **Lash & Laid Booking Receiver** Apps Script project.
