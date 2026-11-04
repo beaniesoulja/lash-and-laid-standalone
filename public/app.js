@@ -160,7 +160,7 @@ bookingForm?.addEventListener('submit', async event => {
       // Do not reflect arbitrary server/debug messages into the customer UI.
       const safeErrors = new Set([
         'Please enter your full name', 'Please enter a valid WhatsApp number',
-        'Please enter a valid email address or leave it blank', 'Please choose a service',
+        'Please enter a valid email address', 'Please choose a service',
         'Please choose a date within the next 90 days', 'Please confirm the appointment request',
         'Please choose no more than 3 photos', 'Photos must be JPEG, PNG, or WebP and no larger than 10 MB each',
         'Too many booking attempts. Please wait a few minutes and try again.'

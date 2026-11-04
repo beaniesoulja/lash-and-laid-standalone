@@ -31,6 +31,16 @@ test('validation rejects malformed dates, missing consent and spoofed image cont
  for(const data of [{date:'2026-02-31'},{confirmation:''},{email:'not-email'},{photos:new File(['<svg>bad</svg>'],'fake.png',{type:'image/png'})}]) assert.equal((await worker.fetch(request(data),env,ctx)).status,400);
  assert.equal(sql.prepare('SELECT count(*) n FROM bookings').get().n,0);
 });
+test('email is required before saving or scheduling notifications',async()=>{
+ for(const email of [null,'','   ','invalid']) {
+  const {sql,env,ctx}=fixture(); const form=await request().formData();
+  if(email===null) form.delete('email'); else form.set('email',email);
+  const response=await worker.fetch(new Request('https://www.lashandlaid.com/api/submit-booking',{method:'POST',body:form}),env,ctx);
+  assert.equal(response.status,400);assert.equal((await response.json()).error,'Please enter a valid email address');
+  assert.equal(sql.prepare('SELECT count(*) n FROM bookings').get().n,0);
+  assert.equal(sql.prepare('SELECT count(*) n FROM booking_notifications').get().n,0);
+ }
+});
 test('oversized bodies are rejected before parsing or database writes',async()=>{
  const {sql,env,ctx}=fixture(); const r=request();r.headers.set('content-length','999999999');
  assert.equal((await worker.fetch(r,env,ctx)).status,413);

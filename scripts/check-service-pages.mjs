@@ -64,5 +64,7 @@ console.log('PASS: 5 canonical pages, unique titles, JSON-LD, sitemap, local lin
 for (const route of ["", "hair-services/", "lash-extensions/", "booking/", "contact/"]) {
   const page = readFileSync(new URL(`../public/${route}index.html`, import.meta.url), "utf8");
   assert.match(page, /data-booking-endpoint="\/api\/submit-booking"/, "same-origin Cloudflare booking endpoint");
+  assert.match(page, /<input[^>]*name="email"[^>]*required/, "email is required on every page");
+  assert.doesNotMatch(page, /Email (?:address \(optional\)|is optional)/, "email is never described as optional");
   assert.doesNotMatch(page, /xdjajqohyikwnfcqroyy\.supabase\.co/, "no legacy backend dependency in page");
 }
