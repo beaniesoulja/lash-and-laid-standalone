@@ -31,7 +31,7 @@ docker build -t lash-and-laid .
 docker run -d --name lash-and-laid -p 3000:3000 lash-and-laid
 ```
 
-The container is stateless. Booking information and optional photos are stored by the configured Supabase booking endpoint, not on the website host.
+The container is stateless. Booking information is stored in Cloudflare D1 and private photos in R2 through the same-origin Cloudflare Worker, not on the website host.
 
 ## Host on Cloudflare Pages
 
@@ -43,7 +43,7 @@ The production website can be deployed as a static Cloudflare Pages project:
 4. Set the build output directory to `public`.
 5. Add the final custom domain when it is ready.
 
-The `public/_headers` file applies the same security headers as the local Node.js server. Booking rate limiting and bot protection run at the Supabase endpoint. No persistent website disk is required.
+The `public/_headers` file applies the same security headers as the local Node.js server. Booking rate limiting and validation run at the Cloudflare Worker endpoint. No persistent website disk is required.
 
 Once the final domain is known, restrict the booking endpoint's allowed browser origin to that domain.
 
@@ -69,4 +69,8 @@ Use tagged campaign links, for example `https://www.lashandlaid.com/?utm_source=
 
 `public/analytics.js` prepares three distinct events: `booking_start` when the form opens, GA4 `generate_lead` / Meta `Lead` **only after the request is saved**, and `whatsapp_click` when a WhatsApp link is tapped. The WhatsApp event does not prove the customer sent the message. No Google or Meta tag loads until a visitor opts in; the footer lets them revisit that choice. Add the real `data-ga4-id="G-…"` and `data-meta-pixel-id="…"` values to the analytics script tag in `public/index.html` after those accounts are created. Until then, no third-party events are sent. Do not put client contact details or booking references into analytics events.
 
-Deploy the additive campaign migration before deploying the updated Supabase function, then deploy the updated Apps Script web app and website. Test one clearly identified request with a tagged link and verify its UTM columns in both Supabase and Sheets. Separately verify GA4 DebugView and Meta Test Events after consenting, and confirm no tags load after rejecting tracking. Mark GA4 `generate_lead` as a key event for Google Ads import. The private status workflow and campaign report are in `supabase/README.md` and `supabase/reports/campaign_performance.sql`.
+For the current Cloudflare backend, campaign columns are included in the D1 schema. Test one clearly identified request with a tagged link and verify its UTM columns in both D1 and Sheets. Separately verify GA4 DebugView and Meta Test Events after consenting, and confirm no tags load after rejecting tracking. Mark GA4 `generate_lead` as a key event for Google Ads import. The private status workflow and campaign report are in `supabase/README.md` and `supabase/reports/campaign_performance.sql`.
+
+## Cloudflare migration
+
+Current backend configuration, staff workflow, verification, and rollback instructions are in [cloudflare/README.md](cloudflare/README.md). The Supabase code is retained as the legacy implementation and recovery reference.

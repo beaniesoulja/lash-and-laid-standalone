@@ -81,7 +81,8 @@ export async function notifyTelegram(booking: TelegramBooking, options: Telegram
     try {
       const response = await fetcher(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: "POST",
-        redirect: "error",
+        // Cloudflare supports manual; a 3xx response is rejected below without forwarding the bot token.
+        redirect: "manual",
         headers: { "Content-Type": "application/json" },
         signal: AbortSignal.timeout(8000),
         body: JSON.stringify({

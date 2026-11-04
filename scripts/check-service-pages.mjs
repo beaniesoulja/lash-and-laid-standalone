@@ -60,3 +60,9 @@ if (process.env.PREVIEW_ORIGIN) {
   assert.equal(redirect.headers.get('location'), '/hair-services/?utm_source=test');
 }
 console.log('PASS: 5 canonical pages, unique titles, JSON-LD, sitemap, local links and unchanged booking forms.');
+
+for (const route of ["", "hair-services/", "lash-extensions/", "booking/", "contact/"]) {
+  const page = readFileSync(new URL(`../public/${route}index.html`, import.meta.url), "utf8");
+  assert.match(page, /data-booking-endpoint="\/api\/submit-booking"/, "same-origin Cloudflare booking endpoint");
+  assert.doesNotMatch(page, /xdjajqohyikwnfcqroyy\.supabase\.co/, "no legacy backend dependency in page");
+}

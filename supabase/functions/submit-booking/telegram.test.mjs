@@ -31,7 +31,7 @@ test('sends complete plain-text booking details to server-configured chat only',
       for (const value of ['Test Customer', '+201012345678', 'test@example.test', '2026-10-11T10:00:00Z', 'instagram', 'paid', 'october', 'reel', 'lashes']) assert.ok(body.text.includes(value));
       assert.ok(body.text.length < 4096);
       assert.doesNotMatch(body.text, /test-only|attacker/);
-      assert.equal(init.redirect, 'error');
+      assert.equal(init.redirect, 'manual');
       assert.ok(init.signal);
       return Response.json({ ok: true });
     },
@@ -144,4 +144,13 @@ test('channel failures retain photo warning and return saved success', async () 
   const result = await runHandler({ googleFails: true, telegramFails: true, uploadFails: true });
   assert.equal(result.status, 202);
   assert.match(result.notes[0], /Photo upload.*Google Sheets.*Telegram/);
+});
+
+test('redirect responses are rejected without following them or retrying', async () => {
+  let calls = 0;
+  await assert.rejects(notifyTelegram(booking, { ...options, fetcher: async (url, init) => {
+    calls++; assert.equal(init.redirect, 'manual');
+    return new Response(null, { status: 302, headers: { Location: 'https://untrusted.example/' } });
+  } }), /Telegram delivery needs attention/);
+  assert.equal(calls, 1);
 });

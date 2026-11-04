@@ -1,0 +1,34 @@
+{
+  "name": "lash-and-laid-bookings",
+  "account_id": "5c2b0a86ff1df5aaa9250fd328907e63",
+  "main": "worker.ts",
+  "compatibility_date": "2026-11-04",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": {
+    "BOOKING_ENABLED": "true"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lash-and-laid-bookings",
+      "database_id": "86f50bcb-a51b-4fb0-9cac-ab24dc024a20",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "PHOTOS",
+      "bucket_name": "lash-and-laid-booking-photos"
+    }
+  ],
+  "observability": {
+    "enabled": false
+  },
+  "routes": [
+    {
+      "pattern": "www.lashandlaid.com/api/*",
+      "zone_name": "lashandlaid.com"
+    }
+  ]
+}
