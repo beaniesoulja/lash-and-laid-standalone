@@ -92,7 +92,7 @@ function doPost(e) {
 
     sendTransactionalEmail_({
       to: CONFIG.notifyEmail,
-      subject: 'New Lash & Laid booking request: ' + reference,
+      subject: 'New Lash & Laid booking request — ' + reference,
       body: emailContent.plainText,
       htmlBody: emailContent.html,
       name: 'Lash & Laid Bookings'
@@ -108,7 +108,7 @@ function doPost(e) {
       sendTransactionalEmail_({
         to: email,
         replyTo: CONFIG.notifyEmail,
-        subject: 'We received your Lash & Laid booking request: ' + reference,
+        subject: 'We received your Lash & Laid booking request — ' + reference,
         body: customerEmail.plainText,
         htmlBody: customerEmail.html,
         name: 'Lash & Laid'

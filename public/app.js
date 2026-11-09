@@ -88,7 +88,6 @@ function resetBookingView() {
 }
 
 function openBooking(event) {
-  event.preventDefault();
   if (bookingDialog.open) return;
   bookingTrigger = event.currentTarget;
   closeMenu();

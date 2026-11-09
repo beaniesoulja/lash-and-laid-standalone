@@ -58,7 +58,7 @@ export async function notifyTelegram(booking: TelegramBooking, options: Telegram
       ['Campaign term', booking.campaignTerm],
     ].filter(([, value]) => value).map(([label, value]) => `${label}: ${line(value!)}`)),
     ...(booking.photoUploadWarning ? ["A photo upload needs attention. The request is saved."] : []),
-    'Private staff notification. Please keep customer details confidential.',
+    'Private staff notification — please keep customer details confidential.',
   ].join("\n");
 
   // Separate bounded messages keep signed photo links intact below Telegram's limit.
